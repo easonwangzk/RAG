@@ -69,6 +69,7 @@ def main():
 
     # Read defaults from .env
     pdf_path = getenv_str("PDF_PATH", "mastersprograminanalytics.pdf")
+    html_dir = getenv_str("HTML_DIR", "data")
     db_dir = getenv_str("CHROMA_DIR", ".chroma")
     embed_model = getenv_str("EMBED_MODEL", "text-embedding-3-large")
     chat_model = getenv_str("CHAT_MODEL", "gpt-4o-mini")
@@ -80,9 +81,10 @@ def main():
     max_tokens = getenv_int("MAX_TOKENS", 800)
 
     print("\n" + "="*80)
-    print("RAGAS Evaluation for RAG System")
+    print("RAGAS Evaluation for RAG System (PDF + HTML)")
     print("="*80)
     print(f"PDF: {pdf_path}")
+    print(f"HTML Directory: {html_dir}")
     print(f"Embedding Model: {embed_model}")
     print(f"Chat Model: {chat_model}")
     print(f"TOP_K: {top_k}, MIN_SIM: {min_sim}")
@@ -96,6 +98,7 @@ def main():
         embed_model=embed_model,
         chunk_tokens=chunk_tokens,
         overlap_tokens=overlap_tokens,
+        html_dir=html_dir,
     )
 
     # Collect predictions for RAGAS dataset

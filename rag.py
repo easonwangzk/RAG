@@ -15,10 +15,12 @@ import warnings
 
 from dotenv import load_dotenv
 from pypdf import PdfReader
+from bs4 import BeautifulSoup
 import tiktoken
 from langchain_core.documents import Document
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+import glob
 
 # Suppress warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -118,6 +120,48 @@ def chunk_text_by_tokens(
     return chunks
 
 
+def extract_html_text_with_metadata(file_path: str) -> Dict:
+    """Extract clean text from HTML with metadata."""
+    with open(file_path, 'r', encoding='utf-8') as f:
+        html = f.read()
+
+    soup = BeautifulSoup(html, 'lxml')
+
+    # Remove unwanted elements
+    for tag in soup(['script', 'style', 'noscript', 'iframe', 'nav', 'footer', 'header', 'aside']):
+        tag.decompose()
+
+    # Find main content
+    main = (soup.find('main') or soup.find('article') or
+            soup.find(id='content') or soup.find(class_='content') or soup.body)
+
+    # Extract structured text
+    text_parts = []
+    if main:
+        for elem in main.find_all(['h1', 'h2', 'h3', 'h4', 'p', 'li', 'td']):
+            text = elem.get_text(strip=True)
+            if text and len(text) > 10:
+                if elem.name in ['h1', 'h2', 'h3']:
+                    level = int(elem.name[1])
+                    text = '\n' + '#' * level + ' ' + text + '\n'
+                text_parts.append(text)
+
+    full_text = ' '.join(text_parts)
+    full_text = ' '.join(full_text.split())
+
+    # Extract metadata
+    title = soup.find('title')
+    title_text = title.get_text(strip=True) if title else os.path.basename(file_path)
+
+    return {
+        "text": full_text,
+        "page": 1,
+        "source": f"{os.path.basename(file_path)}",
+        "title": title_text,
+        "file_type": "html"
+    }
+
+
 def create_documents_from_pdf(
     file_path: str,
     chunk_tokens: int = 500,
@@ -142,10 +186,75 @@ def create_documents_from_pdf(
                 metadata={
                     "page": page_data["page"],
                     "source": page_data["source"],
-                    "chunk_id": f"p{page_data['page']}_c{i}"
+                    "chunk_id": f"p{page_data['page']}_c{i}",
+                    "file_type": "pdf"
                 }
             )
             documents.append(doc)
+
+    return documents
+
+
+def create_documents_from_html(
+    file_path: str,
+    chunk_tokens: int = 500,
+    overlap_tokens: int = 100
+) -> List[Document]:
+    """
+    Process HTML into Documents with smart chunking.
+    """
+    html_data = extract_html_text_with_metadata(file_path)
+    documents = []
+
+    if not html_data["text"]:
+        return documents
+
+    chunks = chunk_text_by_tokens(
+        html_data["text"],
+        max_tokens=chunk_tokens,
+        overlap_tokens=overlap_tokens
+    )
+
+    for i, chunk in enumerate(chunks):
+        doc = Document(
+            page_content=chunk,
+            metadata={
+                "page": 1,
+                "source": html_data["source"],
+                "title": html_data["title"],
+                "chunk_id": f"html_{i}",
+                "file_type": "html"
+            }
+        )
+        documents.append(doc)
+
+    return documents
+
+
+def create_documents_from_directory(
+    directory: str,
+    chunk_tokens: int = 500,
+    overlap_tokens: int = 100,
+    file_pattern: str = "*.html"
+) -> List[Document]:
+    """
+    Process all files in a directory.
+    """
+    documents = []
+    pattern = os.path.join(directory, file_pattern)
+
+    for file_path in sorted(glob.glob(pattern)):
+        try:
+            if file_path.endswith('.html'):
+                docs = create_documents_from_html(file_path, chunk_tokens, overlap_tokens)
+                documents.extend(docs)
+                print(f"  + {os.path.basename(file_path)}: {len(docs)} chunks")
+            elif file_path.endswith('.pdf'):
+                docs = create_documents_from_pdf(file_path, chunk_tokens, overlap_tokens)
+                documents.extend(docs)
+                print(f"  + {os.path.basename(file_path)}: {len(docs)} chunks")
+        except Exception as e:
+            print(f"  x {os.path.basename(file_path)}: {e}")
 
     return documents
 
@@ -166,9 +275,11 @@ def load_or_build_vectordb(
     chunk_tokens: int,
     overlap_tokens: int,
     force_rebuild: bool = False,
+    html_dir: str = None,
 ) -> Chroma:
     """
     Load or build Chroma vector database with optimized chunking.
+    Supports both PDF and HTML sources.
     """
     os.makedirs(persist_dir, exist_ok=True)
     embeddings = OpenAIEmbeddings(model=embed_model)
@@ -182,29 +293,49 @@ def load_or_build_vectordb(
             )
             count = vectordb._collection.count()
             if count > 0:
-                print(f"✓ Loaded existing vector DB with {count} chunks")
+                print(f"+ Loaded existing vector DB with {count} chunks")
                 return vectordb
         except Exception as e:
-            print(f"⚠ Could not load existing DB: {e}")
+            print(f"! Could not load existing DB: {e}")
 
-    if not os.path.exists(pdf_path):
-        raise FileNotFoundError(f"Cannot find '{pdf_path}'")
+    # Collect documents from multiple sources
+    all_documents = []
 
-    print(f"📄 Loading PDF: {pdf_path}")
-    documents = create_documents_from_pdf(
-        pdf_path,
-        chunk_tokens=chunk_tokens,
-        overlap_tokens=overlap_tokens
-    )
-    print(f"✓ Created {len(documents)} chunks")
+    # Process PDF if exists
+    if pdf_path and os.path.exists(pdf_path):
+        print(f"Loading PDF: {pdf_path}")
+        pdf_docs = create_documents_from_pdf(
+            pdf_path,
+            chunk_tokens=chunk_tokens,
+            overlap_tokens=overlap_tokens
+        )
+        all_documents.extend(pdf_docs)
+        print(f"  + PDF: {len(pdf_docs)} chunks")
 
-    print(f"🔄 Building vector database with {embed_model}...")
+    # Process HTML directory if exists
+    if html_dir and os.path.exists(html_dir):
+        print(f"Loading HTML files from: {html_dir}")
+        html_docs = create_documents_from_directory(
+            html_dir,
+            chunk_tokens=chunk_tokens,
+            overlap_tokens=overlap_tokens,
+            file_pattern="*.html"
+        )
+        all_documents.extend(html_docs)
+        print(f"  + HTML: {len(html_docs)} chunks from {len(os.listdir(html_dir))} files")
+
+    if not all_documents:
+        raise ValueError("No documents found to process")
+
+    print(f"\nTotal chunks: {len(all_documents)}")
+    print(f"Building vector database with {embed_model}...")
+
     vectordb = Chroma.from_documents(
-        documents=documents,
+        documents=all_documents,
         embedding=embeddings,
         persist_directory=persist_dir
     )
-    print(f"✓ Vector database created")
+    print(f"+ Vector database created and persisted")
     return vectordb
 
 
@@ -231,28 +362,56 @@ def retrieve_with_scores(
     return results
 
 
+def expand_query(query: str) -> str:
+    """
+    Simple rule-based query expansion to improve retrieval.
+    Adds relevant keywords for common query patterns.
+    """
+    query_lower = query.lower()
+
+    # Course-related queries
+    if 'core course' in query_lower:
+        return query + " Time Series Machine Learning Statistical Models Data Engineering Leadership"
+    elif 'elective' in query_lower:
+        return query + " NLP Deep Learning Bayesian Machine Learning"
+
+    # Program structure queries
+    elif 'capstone' in query_lower or 'thesis' in query_lower:
+        return query + " project research implementation design writing"
+    elif 'program' in query_lower and ('length' in query_lower or 'long' in query_lower):
+        return query + " duration quarters years months full-time part-time"
+
+    # Admission queries
+    elif 'admission' in query_lower or 'apply' in query_lower or 'application' in query_lower:
+        return query + " requirements GPA TOEFL deadline prerequisites"
+
+    return query
+
+
 def deduplicate_and_merge_chunks(
     results: List[Tuple[Document, float]]
 ) -> List[Tuple[Document, float]]:
     """
-    Smart deduplication: merge chunks from the same page.
-    This helps when multiple chunks from the same page are retrieved.
+    Improved deduplication: group by source file to eliminate duplicates.
+    Many HTML pages have identical content (e.g., page_00001 and page_00012).
     """
-    page_groups = {}
+    # Group by source file
+    source_groups = {}
 
     for doc, sim in results:
-        page = doc.metadata.get("page", 0)
-        if page not in page_groups:
-            page_groups[page] = []
-        page_groups[page].append((doc, sim))
+        source = doc.metadata.get("source", "unknown")
+        if source not in source_groups:
+            source_groups[source] = []
+        source_groups[source].append((doc, sim))
 
-    # For each page, keep the best scoring chunk or merge if multiple
-    merged_results = []
-    for page, chunks in page_groups.items():
-        # Sort by similarity
+    # Keep only the best chunk from each source
+    unique_results = []
+    for source, chunks in source_groups.items():
+        # Sort by similarity and take the best
         chunks.sort(key=lambda x: x[1], reverse=True)
+        best_chunk = chunks[0]
 
-        # If multiple high-quality chunks from same page, merge them
+        # If there are multiple high-quality chunks from same source, merge them
         if len(chunks) > 1 and chunks[1][1] > 0.3:
             # Merge top 2 chunks
             merged_content = f"{chunks[0][0].page_content}\n\n{chunks[1][0].page_content}"
@@ -260,13 +419,13 @@ def deduplicate_and_merge_chunks(
                 page_content=merged_content,
                 metadata=chunks[0][0].metadata
             )
-            merged_results.append((merged_doc, chunks[0][1]))
+            unique_results.append((merged_doc, chunks[0][1]))
         else:
-            merged_results.append(chunks[0])
+            unique_results.append(best_chunk)
 
     # Sort by similarity
-    merged_results.sort(key=lambda x: x[1], reverse=True)
-    return merged_results
+    unique_results.sort(key=lambda x: x[1], reverse=True)
+    return unique_results
 
 
 def format_context(results: List[Tuple[Document, float]], max_context_tokens: int = 3000) -> str:
@@ -314,15 +473,23 @@ def answer_question(
     verbose: bool = False,
 ) -> Dict:
     """
-    Full RAG pipeline with improved retrieval and generation.
+    Full RAG pipeline with query expansion and improved retrieval.
     """
     llm = ChatOpenAI(model=chat_model, temperature=temperature, max_tokens=max_tokens)
 
-    # Retrieve documents
-    results = retrieve_with_scores(vdb, question, k=top_k * 2)  # Get more initially
+    # Query expansion for better retrieval
+    expanded_query = expand_query(question)
+
+    if verbose and expanded_query != question:
+        print(f"\nQuery expansion:")
+        print(f"   Original: {question}")
+        print(f"   Expanded: {expanded_query}")
+
+    # Retrieve documents with expanded query
+    results = retrieve_with_scores(vdb, expanded_query, k=top_k * 2)  # Get more initially
 
     if verbose:
-        print(f"\n🔍 Initial retrieval: {len(results)} chunks")
+        print(f"\nInitial retrieval: {len(results)} chunks")
         for i, (doc, sim) in enumerate(results[:5], 1):
             src = doc.metadata.get('source', 'N/A')
             preview = doc.page_content[:100].replace('\n', ' ')
@@ -335,7 +502,7 @@ def answer_question(
     results = [(doc, sim) for doc, sim in results if sim >= min_sim][:top_k]
 
     if verbose:
-        print(f"\n📊 After dedup/filter: {len(results)} chunks")
+        print(f"\nAfter dedup/filter: {len(results)} chunks")
 
     if not results:
         return {
@@ -386,6 +553,7 @@ def main():
 
     # Read defaults from .env
     default_pdf = getenv_str("PDF_PATH", "mastersprograminanalytics.pdf")
+    default_html_dir = getenv_str("HTML_DIR", "data")
     default_db = getenv_str("CHROMA_DIR", ".chroma")
     default_embed_model = getenv_str("EMBED_MODEL", "text-embedding-3-large")
     default_chat_model = getenv_str("CHAT_MODEL", "gpt-4o-mini")
@@ -397,11 +565,12 @@ def main():
     default_maxtoks = getenv_int("MAX_TOKENS", 800)
 
     parser = argparse.ArgumentParser(
-        description="Optimized RAG system with token-based chunking."
+        description="Optimized RAG system with token-based chunking - supports PDF and HTML."
     )
     parser.add_argument("question", type=str, nargs="*",
                        help="Your question (if not provided, will prompt interactively)")
-    parser.add_argument("--pdf", default=default_pdf)
+    parser.add_argument("--pdf", default=default_pdf, help="Path to PDF file")
+    parser.add_argument("--html_dir", default=default_html_dir, help="Directory containing HTML files")
     parser.add_argument("--db", default=default_db)
     parser.add_argument("--embed_model", default=default_embed_model)
     parser.add_argument("--chat_model", default=default_chat_model)
@@ -432,6 +601,7 @@ def main():
         chunk_tokens=args.chunk_tokens,
         overlap_tokens=args.overlap_tokens,
         force_rebuild=args.rebuild,
+        html_dir=args.html_dir,
     )
 
     # Answer question
