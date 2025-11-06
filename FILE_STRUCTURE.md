@@ -1,454 +1,468 @@
-# 项目文件结构详解
+# Project File Structure Documentation
 
-## 📁 项目概览
+## Project Overview
 
 ```
 project/
-├── 核心代码 (2个Python文件)
-│   ├── rag.py                     # 主RAG系统
-│   └── eval_ragas.py              # 评估脚本
+├── Core Code (2 Python files)
+│   ├── rag.py                     # Main RAG system
+│   └── eval_ragas.py              # Evaluation script
 │
-├── 配置文件 (4个)
-│   ├── .env                       # 本地配置 (包含API密钥)
-│   ├── .env.example              # 配置模板
-│   ├── requirements.txt          # Python依赖
-│   └── .gitignore               # Git忽略规则
+├── Configuration Files (4 files)
+│   ├── .env                       # Local configuration (contains API keys)
+│   ├── .env.example              # Configuration template
+│   ├── requirements.txt          # Python dependencies
+│   └── .gitignore               # Git ignore rules
 │
-├── 文档 (1个)
-│   └── README.md                 # 项目文档
+├── Documentation (2 files)
+│   ├── README.md                 # Project documentation
+│   └── FILE_STRUCTURE.md         # This file
 │
-├── 数据文件 (15个，在data/目录)
+├── Data Files (15 files in data/ directory)
 │   ├── mastersprograminanalytics.pdf
-│   └── page_*.html (14个HTML文件)
+│   └── page_*.html (14 HTML files)
 │
-└── 自动生成 (运行时创建)
-    ├── .chroma/                  # 向量数据库
-    └── __pycache__/              # Python缓存
+└── Auto-generated (created at runtime)
+    ├── .chroma/                  # Vector database
+    └── __pycache__/              # Python cache
 ```
 
 ---
 
-## 📄 核心代码文件
+## Core Code Files
 
-### 1. `rag.py` (18KB, ~600行)
+### 1. `rag.py` (20KB, ~633 lines)
 
-**作用**: RAG系统的核心实现文件
+**Purpose**: Core implementation file for the RAG system
 
-**主要功能**:
-- ✅ PDF和HTML文档解析
-- ✅ Token-based文本分块 (600 tokens/chunk)
-- ✅ 向量数据库构建和管理
-- ✅ 查询扩展 (Query Expansion)
-- ✅ 智能检索和去重
-- ✅ LLM答案生成
+**Main Features**:
+- PDF and HTML document parsing
+- Token-based text chunking (600 tokens/chunk)
+- Vector database construction and management
+- Query expansion for improved retrieval
+- Smart retrieval and deduplication
+- LLM answer generation
 
-**关键函数**:
+**Key Functions**:
 ```python
-# 数据处理
-extract_pdf_text_with_metadata()     # 提取PDF内容
-extract_html_text_with_metadata()    # 提取HTML内容
-create_documents_from_pdf()          # PDF转Document对象
-create_documents_from_html()         # HTML转Document对象
+# Data processing
+extract_pdf_text_with_metadata()     # Extract PDF content
+extract_html_text_with_metadata()    # Extract HTML content
+create_documents_from_pdf()          # PDF to Document objects
+create_documents_from_html()         # HTML to Document objects
 
-# 向量数据库
-load_or_build_vectordb()             # 加载或构建向量DB
+# Vector database
+load_or_build_vectordb()             # Load or build vector DB
 
-# 检索优化
-expand_query()                       # 查询扩展
-retrieve_with_scores()               # 检索并计算相似度
-deduplicate_and_merge_chunks()       # 去重和合并
+# Retrieval optimization
+expand_query()                       # Query expansion
+retrieve_with_scores()               # Retrieve and calculate similarity
+deduplicate_and_merge_chunks()       # Deduplication and merging
 
-# 答案生成
-answer_question()                    # 完整RAG流程
+# Answer generation
+answer_question()                    # Complete RAG pipeline
 ```
 
-**命令行使用**:
+**Command Line Usage**:
 ```bash
 python rag.py "What are the core courses?"
-python rag.py --rebuild "question"     # 重建向量DB
-python rag.py -v "question"            # 详细输出
-python rag.py --top_k 10 "question"    # 检索10个chunks
-python rag.py --min_sim 0.15 "question" # 降低相似度阈值
+python rag.py --rebuild "question"     # Rebuild vector DB
+python rag.py -v "question"            # Verbose output
+python rag.py --top_k 10 "question"    # Retrieve 10 chunks
+python rag.py --min_sim 0.15 "question" # Lower similarity threshold
 ```
 
-**核心优化**:
-1. **查询扩展**: 自动为"core courses"添加课程名称关键词
-2. **按源文件去重**: 消除重复HTML页面 (page_00001和page_00012)
-3. **Token-based分块**: 比字符级更精确
-4. **相似度修复**: `sim = 1 - (dist/2)` 而非 `1 - dist`
+**Core Optimizations**:
+1. **Query Expansion**: Automatically adds course name keywords for "core courses"
+2. **Source-based Deduplication**: Eliminates duplicate HTML pages (page_00001 and page_00012)
+3. **Token-based Chunking**: More precise than character-level
+4. **Similarity Fix**: `sim = 1 - (dist/2)` instead of `1 - dist`
 
 ---
 
-### 2. `eval_ragas.py` (4.2KB, ~130行)
+### 2. `eval_ragas.py` (4.3KB, ~136 lines)
 
-**作用**: 使用RAGAS框架评估RAG系统性能
+**Purpose**: Evaluate RAG system performance using RAGAS framework
 
-**评估指标**:
-- **Faithfulness** (忠实度): 答案是否基于检索到的内容
-- **Answer Relevancy** (相关性): 答案是否回答了问题
+**Evaluation Metrics**:
+- **Faithfulness**: Whether answer is based on retrieved content
+- **Answer Relevancy**: Whether answer addresses the question
 
-**测试问题集**:
+**Test Question Set**:
 1. What are the core courses?
 2. How long does the program typically take to complete?
 3. Are there any capstone or practicum components?
 4. Tell me about the Time Series Analysis course
 5. What is the Machine Learning I course about?
 
-**使用方式**:
+**Usage**:
 ```bash
 python eval_ragas.py
 ```
 
-**输出**:
-- 每个问题的检索上下文
-- 生成的答案
-- Faithfulness和Answer Relevancy分数
-- 总体评估报告
+**Output**:
+- Retrieved context for each question
+- Generated answers
+- Faithfulness and Answer Relevancy scores
+- Overall evaluation report
 
 ---
 
-## ⚙️ 配置文件
+## Configuration Files
 
-### 3. `.env` (本地配置，不在Git中)
+### 3. `.env` (Local configuration, not in Git)
 
-**作用**: 存储本地配置和API密钥
+**Purpose**: Store local configuration and API keys
 
-**内容**:
+**Content**:
 ```env
-# 数据源
+# Data sources
 PDF_PATH=data/mastersprograminanalytics.pdf
 HTML_DIR=data
 
-# 向量数据库
+# Vector database
 CHROMA_DIR=.chroma
 
-# OpenAI模型
+# OpenAI models
 EMBED_MODEL=text-embedding-3-large
 CHAT_MODEL=gpt-4o-mini
 
-# 分块参数
+# Chunking parameters
 CHUNK_TOKENS=600
 OVERLAP_TOKENS=150
 
-# 检索参数
+# Retrieval parameters
 TOP_K=5
 MIN_SIM=0.20
 
-# 生成参数
+# Generation parameters
 TEMPERATURE=0.2
 MAX_TOKENS=800
 
-# API密钥 (敏感信息!)
+# API key (sensitive information!)
 OPENAI_API_KEY=sk-proj-xxxxx...
 ```
 
-**注意**: 
-- ⚠️ 包含API密钥，已在 `.gitignore` 中排除
-- 🔒 不要提交到Git仓库
+**Note**:
+- Contains API keys, excluded in `.gitignore`
+- Do NOT commit to Git repository
 
 ---
 
-### 4. `.env.example` (配置模板)
+### 4. `.env.example` (Configuration template)
 
-**作用**: 配置文件模板，提交到Git供其他人参考
+**Purpose**: Configuration file template, committed to Git for reference
 
-**内容**: 与 `.env` 相同，但API密钥部分为:
+**Content**: Same as `.env`, but API key section is:
 ```env
 OPENAI_API_KEY=your-api-key-here
 ```
 
-**使用方式**:
+**Usage**:
 ```bash
 cp .env.example .env
-# 编辑 .env 添加真实的API密钥
+# Edit .env to add real API key
 ```
 
 ---
 
-### 5. `requirements.txt` (Python依赖)
+### 5. `requirements.txt` (Python dependencies)
 
-**作用**: 列出项目所需的Python包
+**Purpose**: List required Python packages
 
-**核心依赖**:
+**Core Dependencies**:
 ```
-# OpenAI和Token处理
+# OpenAI and Token processing
 openai>=1.43.0
 tiktoken>=0.7.0
 
-# LangChain RAG框架
+# LangChain RAG framework
 langchain>=0.3.2
 langchain-community>=0.3.1
 langchain-openai>=0.1.24
 
-# 向量数据库
+# Vector database
 chromadb>=0.5.4
 
-# 文档处理
-pypdf>=5.0.0                # PDF解析
-beautifulsoup4>=4.12.0      # HTML解析
-lxml>=5.0.0                 # XML/HTML解析器
+# Document processing
+pypdf>=5.0.0                # PDF parsing
+beautifulsoup4>=4.12.0      # HTML parsing
+lxml>=5.0.0                 # XML/HTML parser
 
-# 评估框架
+# Evaluation framework
 ragas>=0.1.9
 datasets>=2.20.0
 pandas>=2.2.2
 numpy>=2.1.2
 
-# 工具
-python-dotenv>=1.0.1        # 环境变量管理
+# Utilities
+python-dotenv>=1.0.1        # Environment variable management
 ```
 
-**高级特性 (可选)**:
+**Advanced Features (optional)**:
 ```
-rank-bm25>=0.2.2            # BM25关键词检索
-sentence-transformers>=2.2.2 # Cross-encoder重排序
+rank-bm25>=0.2.2            # BM25 keyword retrieval
+sentence-transformers>=2.2.2 # Cross-encoder reranking
 ```
 
-**安装**:
+**Installation**:
 ```bash
 pip install -r requirements.txt
 ```
 
 ---
 
-### 6. `.gitignore` (Git忽略规则)
+### 6. `.gitignore` (Git ignore rules)
 
-**作用**: 告诉Git哪些文件不需要提交
+**Purpose**: Tell Git which files not to commit
 
-**主要内容**:
+**Main Content**:
 ```
 # Python
 __pycache__/
 *.pyc
 
-# 环境变量 (包含API密钥)
+# Environment variables (contains API keys)
 .env
 
-# 向量数据库 (太大，应本地生成)
+# Vector database (too large, should be generated locally)
 .chroma/
 
 # IDE
 .vscode/
 .idea/
 
-# 系统文件
+# System files
 .DS_Store
 ```
 
 ---
 
-## 📚 文档文件
+## Documentation Files
 
 ### 7. `README.md` (6KB)
 
-**作用**: 项目使用文档
+**Purpose**: Project usage documentation
 
-**内容结构**:
-1. **快速开始** - 3步开始使用
-2. **系统性能** - 性能指标
-3. **使用示例** - 各种查询示例
-4. **配置说明** - 参数详解
-5. **核心技术** - 技术栈介绍
-6. **项目结构** - 文件说明
-7. **RAGAS评估** - 评估方法
-8. **技术栈** - 依赖说明
-9. **性能指标** - 基准数据
-10. **最佳实践** - 使用建议
-11. **故障排查** - 常见问题
+**Content Structure**:
+1. **Quick Start** - 3 steps to get started
+2. **System Performance** - Performance metrics
+3. **Usage Examples** - Various query examples
+4. **Configuration** - Parameter explanation
+5. **Core Technologies** - Technology stack introduction
+6. **Project Structure** - File descriptions
+7. **RAGAS Evaluation** - Evaluation methods
+8. **Technology Stack** - Dependency descriptions
+9. **Performance Metrics** - Benchmark data
+10. **Best Practices** - Usage recommendations
+11. **Troubleshooting** - Common issues
 
-**快速查阅**:
+**Quick Reference**:
 ```bash
-# 查看README
+# View README
 cat README.md
-# 或在GitHub上查看渲染后的版本
+# Or view rendered version on GitHub
 ```
 
 ---
 
-## 📦 数据文件 (data/目录)
+### 8. `FILE_STRUCTURE.md` (This file)
 
-### 8. `data/mastersprograminanalytics.pdf` (209KB)
+**Purpose**: Comprehensive documentation of all project files
 
-**作用**: UChicago MS Applied Data Science项目的PDF手册
-
-**内容**:
-- 项目概述
-- 课程列表和描述
-- 录取要求
-- 项目时长
-- Capstone项目
-- 课程代码 (如ADSP 31006)
-
-**提取结果**: 20 chunks (8个页面)
-
-**特点**:
-- 官方文档
-- 结构化内容
-- 包含课程代码
+**Content**:
+- Detailed file descriptions
+- Code examples and usage patterns
+- File size statistics
+- Quick start guide
+- Modification instructions
 
 ---
 
-### 9-22. `data/page_*.html` (14个HTML文件)
+## Data Files (data/ directory)
 
-**作用**: UChicago Data Science网站的网页快照
+### 9. `data/mastersprograminanalytics.pdf` (214KB)
 
-**文件列表**:
+**Purpose**: UChicago MS Applied Data Science program PDF handbook
+
+**Content**:
+- Program overview
+- Course list and descriptions
+- Admission requirements
+- Program duration
+- Capstone project
+- Course codes (e.g., ADSP 31006)
+
+**Extraction Result**: 20 chunks (8 pages)
+
+**Characteristics**:
+- Official documentation
+- Structured content
+- Contains course codes
+
+---
+
+### 10-23. `data/page_*.html` (14 HTML files)
+
+**Purpose**: Web page snapshots from UChicago Data Science website
+
+**File List**:
 ```
-page_00000.html (1 chunk)   - 首页
-page_00001.html (29 chunks) - 课程详情
-page_00002.html (31 chunks) - 课程详情
-page_00003.html (1 chunk)   - 简短页面
-page_00004.html (38 chunks) - 项目结构 ⭐ 最重要
+page_00000.html (1 chunk)   - Home page
+page_00001.html (29 chunks) - Course details
+page_00002.html (31 chunks) - Course details
+page_00003.html (1 chunk)   - Short page
+page_00004.html (38 chunks) - Program structure (Most important)
 page_00005.html (20 chunks) - FAQ
-page_00006.html (6 chunks)  - 学生故事
-page_00007.html (2 chunks)  - 简短页面
-page_00008.html (3 chunks)  - 简短页面
-page_00009.html (22 chunks) - 课程描述
-page_00010.html (1 chunk)   - 简短页面
-page_00011.html (2 chunks)  - Capstone信息
-page_00012.html (29 chunks) - 课程详情 (与page_00001重复)
-page_00013.html (2 chunks)  - 简短页面
+page_00006.html (6 chunks)  - Student stories
+page_00007.html (2 chunks)  - Short page
+page_00008.html (3 chunks)  - Short page
+page_00009.html (22 chunks) - Course descriptions
+page_00010.html (1 chunk)   - Short page
+page_00011.html (2 chunks)  - Capstone information
+page_00012.html (29 chunks) - Course details (duplicate of page_00001)
+page_00013.html (2 chunks)  - Short page
 ```
 
-**总计**: 187 chunks
+**Total**: 187 chunks
 
-**内容**:
-- 详细的课程描述
-- 项目时间线
-- 学生故事
+**Content**:
+- Detailed course descriptions
+- Program timeline
+- Student stories
 - FAQ
-- Capstone项目信息
+- Capstone project information
 
-**处理方式**:
-- 移除噪音: script, style, nav, footer (71.3%过滤率)
-- 保留结构: h1-h5, p, li, td
-- 提取元数据: title, description, URL
+**Processing Method**:
+- Remove noise: script, style, nav, footer (71.3% filtering rate)
+- Keep structure: h1-h5, p, li, td
+- Extract metadata: title, description, URL
 
 ---
 
-## 🗄️ 自动生成文件
+## Auto-generated Files
 
-### `.chroma/` (向量数据库目录)
+### `.chroma/` (Vector database directory)
 
-**作用**: 存储文档的向量嵌入
+**Purpose**: Store document vector embeddings
 
-**大小**: ~20-30MB
+**Size**: ~20-30MB
 
-**内容**:
-- 207个文档chunks的embeddings
-- ChromaDB索引文件
-- 元数据
+**Content**:
+- Embeddings for 207 document chunks
+- ChromaDB index files
+- Metadata
 
-**生成方式**:
+**Generation**:
 ```bash
 python rag.py --rebuild "test"
 ```
 
-**注意**:
-- ⚠️ 已在 `.gitignore` 中排除
-- 🔄 首次运行或数据变化时需要重建
-- 🗑️ 删除后会自动重建
+**Note**:
+- Excluded in `.gitignore`
+- Needs to be rebuilt on first run or when data changes
+- Automatically rebuilt after deletion
 
 ---
 
-### `__pycache__/` (Python缓存)
+### `__pycache__/` (Python cache)
 
-**作用**: Python编译后的字节码缓存
+**Purpose**: Python compiled bytecode cache
 
-**内容**:
+**Content**:
 - `rag.cpython-310.pyc`
-- 自动生成的 `.pyc` 文件
+- Auto-generated `.pyc` files
 
-**注意**:
-- ⚠️ 已在 `.gitignore` 中排除
-- 🔄 Python自动管理
-- 🗑️ 可以安全删除
-
----
-
-## 📊 文件大小统计
-
-| 类型 | 文件数 | 总大小 |
-|------|--------|--------|
-| Python代码 | 2 | 22KB |
-| 配置文件 | 4 | 2KB |
-| 文档 | 1 | 6KB |
-| PDF数据 | 1 | 209KB |
-| HTML数据 | 14 | ~1.7MB |
-| 向量数据库 | - | ~25MB |
-| **总计** | 22+ | ~2MB (不含.chroma) |
+**Note**:
+- Excluded in `.gitignore`
+- Automatically managed by Python
+- Safe to delete
 
 ---
 
-## 🔑 关键文件说明
+## File Size Statistics
 
-### 必须的文件 (6个)
-1. ✅ `rag.py` - 核心代码
-2. ✅ `eval_ragas.py` - 评估脚本
-3. ✅ `requirements.txt` - 依赖列表
-4. ✅ `.env` - 配置 (需本地创建)
-5. ✅ `README.md` - 文档
-6. ✅ `data/` - 数据目录
-
-### 推荐的文件 (3个)
-1. ✅ `.env.example` - 配置模板
-2. ✅ `.gitignore` - Git规则
-3. ✅ `FILE_STRUCTURE.md` - 本文档
-
-### 自动生成 (2个)
-1. 🔄 `.chroma/` - 向量数据库
-2. 🔄 `__pycache__/` - Python缓存
+| Type | File Count | Total Size |
+|------|-----------|-----------|
+| Python code | 2 | 24KB |
+| Configuration files | 4 | 2KB |
+| Documentation | 2 | 15KB |
+| PDF data | 1 | 214KB |
+| HTML data | 14 | ~1.7MB |
+| Vector database | - | ~25MB |
+| **Total** | 23+ | ~2MB (excluding .chroma) |
 
 ---
 
-## 🚀 快速开始流程
+## Key Files Explanation
+
+### Required Files (6)
+1. `rag.py` - Core code
+2. `eval_ragas.py` - Evaluation script
+3. `requirements.txt` - Dependency list
+4. `.env` - Configuration (must be created locally)
+5. `README.md` - Documentation
+6. `data/` - Data directory
+
+### Recommended Files (3)
+1. `.env.example` - Configuration template
+2. `.gitignore` - Git rules
+3. `FILE_STRUCTURE.md` - This documentation
+
+### Auto-generated (2)
+1. `.chroma/` - Vector database
+2. `__pycache__/` - Python cache
+
+---
+
+## Quick Start Process
 
 ```bash
-# 1. 安装依赖
+# 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. 配置API密钥
+# 2. Configure API key
 cp .env.example .env
-vim .env  # 添加OPENAI_API_KEY
+vim .env  # Add OPENAI_API_KEY
 
-# 3. 运行RAG系统
+# 3. Run RAG system
 python rag.py "What are the core courses?"
 
-# 4. 评估系统
+# 4. Evaluate system
 python eval_ragas.py
 
-# 5. 查看文档
+# 5. View documentation
 cat README.md
 ```
 
 ---
 
-## 💡 文件修改指南
+## File Modification Guide
 
-### 想要修改检索参数？
-编辑 `.env`:
+### Want to modify retrieval parameters?
+Edit `.env`:
 ```env
-TOP_K=10          # 检索更多chunks
-MIN_SIM=0.15      # 降低阈值
+TOP_K=10          # Retrieve more chunks
+MIN_SIM=0.15      # Lower threshold
 ```
 
-### 想要添加新的查询扩展规则？
-编辑 `rag.py` 中的 `expand_query()` 函数
+### Want to add new query expansion rules?
+Edit `expand_query()` function in `rag.py`
 
-### 想要更换模型？
-编辑 `.env`:
+### Want to change models?
+Edit `.env`:
 ```env
-EMBED_MODEL=text-embedding-3-small  # 更小的embedding
-CHAT_MODEL=gpt-4o                   # 更强的LLM
+EMBED_MODEL=text-embedding-3-small  # Smaller embedding
+CHAT_MODEL=gpt-4o                   # Stronger LLM
 ```
 
-### 想要添加新的数据源？
-1. 放入 `data/` 目录
-2. 如果是PDF，更新 `.env` 中的 `PDF_PATH`
-3. 如果是HTML，确保在 `data/` 目录下
-4. 运行 `python rag.py --rebuild "test"`
+### Want to add new data sources?
+1. Place in `data/` directory
+2. If PDF, update `PDF_PATH` in `.env`
+3. If HTML, ensure it's in `data/` directory
+4. Run `python rag.py --rebuild "test"`
 
 ---
 
-**文档生成时间**: 2025-11-05
-**项目版本**: V2.0 (优化版)
+**Documentation Generated**: 2025-11-05
+**Project Version**: V3.0 (Optimized)

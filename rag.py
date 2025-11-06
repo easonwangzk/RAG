@@ -520,7 +520,7 @@ def answer_question(
     user_prompt = USER_TEMPLATE.format(question=question, context=context_str)
 
     if verbose:
-        print(f"\n💭 Generating answer with {chat_model}...")
+        print(f"\nGenerating answer with {chat_model}...")
         print(f"   Context tokens: ~{len(tiktoken.get_encoding('cl100k_base').encode(context_str))}")
 
     resp = llm.invoke([
@@ -588,7 +588,7 @@ def main():
     if args.question:
         q = " ".join(args.question).strip()
     else:
-        q = input("\n💬 Enter your question: ").strip()
+        q = input("\nEnter your question: ").strip()
         if not q:
             print("No question provided. Exiting.")
             sys.exit(0)
@@ -626,7 +626,7 @@ def main():
     if out["sources"]:
         print(f"\nTop sources ({len(out['sources'])}):")
         for s in out["sources"][:5]:
-            print("  •", s)
+            print("  -", s)
 
 
 if __name__ == "__main__":
