@@ -19,8 +19,14 @@ cp .env.example .env
 
 ### 3. Run Query
 
+**Command Line Interface:**
 ```bash
 python rag.py "What are the core courses?"
+```
+
+**Web Interface (Streamlit):**
+```bash
+streamlit run app.py
 ```
 
 ## System Performance
@@ -32,18 +38,34 @@ python rag.py "What are the core courses?"
 
 ## Usage Examples
 
-### Basic Queries
+### Command Line Interface
+
+**Basic Queries:**
 ```bash
 python rag.py "What are the core courses?"
 python rag.py "How long does the program take?"
 python rag.py "Tell me about the capstone project"
 ```
 
-### Interactive Mode
+**Interactive Mode:**
 ```bash
 python rag.py
 # Press Enter and input your question
 ```
+
+### Web Interface (Streamlit)
+
+```bash
+streamlit run app.py
+# Opens browser at http://localhost:8501
+```
+
+**Features:**
+- Interactive chat interface with conversation history
+- Real-time "thinking" animation during processing
+- Suggested questions organized by category
+- Adjustable RAG parameters (Temperature, Top K, Min Similarity)
+- Session statistics and system status monitoring
 
 ### Custom Parameters
 ```bash
@@ -110,7 +132,8 @@ MAX_TOKENS=800          # Maximum generation tokens
 
 ```
 .
-├── rag.py                     # Main program
+├── rag.py                     # Main RAG system (CLI)
+├── app.py                     # Web interface (Streamlit)
 ├── eval_ragas.py              # RAGAS evaluation
 ├── requirements.txt           # Python dependencies
 ├── .env                       # Configuration file (not in git)
@@ -149,6 +172,7 @@ python eval_ragas.py
 - `chromadb` - Vector database
 - `openai` - Embeddings and LLM
 - `tiktoken` - Token counting
+- `streamlit` - Web interface
 
 **Data Processing**:
 - `pypdf` - PDF parsing

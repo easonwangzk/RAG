@@ -4,8 +4,9 @@
 
 ```
 project/
-├── Core Code (2 Python files)
-│   ├── rag.py                     # Main RAG system
+├── Core Code (3 Python files)
+│   ├── rag.py                     # Main RAG system (CLI)
+│   ├── app.py                     # Web interface (Streamlit)
 │   └── eval_ragas.py              # Evaluation script
 │
 ├── Configuration Files (4 files)
@@ -80,7 +81,34 @@ python rag.py --min_sim 0.15 "question" # Lower similarity threshold
 
 ---
 
-### 2. `eval_ragas.py` (4.3KB, ~136 lines)
+### 2. `app.py` (~8KB, ~722 lines)
+
+**Purpose**: Streamlit web interface for interactive RAG queries
+
+**Main Features**:
+- Chat-based UI with conversation history
+- Real-time processing with "thinking" animation
+- Suggested questions organized by category
+- Adjustable parameters (Temperature, Top K, Min Similarity)
+- Session statistics and system monitoring
+- UChicago-themed modern design
+
+**Usage**:
+```bash
+streamlit run app.py
+# Opens at http://localhost:8501
+```
+
+**Key Components**:
+- `load_vectordb_cached()`: Load vector DB (cached)
+- `get_ai_response()`: Call RAG system
+- `render_message()`: Display chat messages
+- `render_suggested_questions()`: Show quick questions
+- `render_sidebar()`: System status and settings
+
+---
+
+### 3. `eval_ragas.py` (4.3KB, ~136 lines)
 
 **Purpose**: Evaluate RAG system performance using RAGAS framework
 
@@ -110,7 +138,7 @@ python eval_ragas.py
 
 ## Configuration Files
 
-### 3. `.env` (Local configuration, not in Git)
+### 4. `.env` (Local configuration, not in Git)
 
 **Purpose**: Store local configuration and API keys
 
@@ -149,7 +177,7 @@ OPENAI_API_KEY=sk-proj-xxxxx...
 
 ---
 
-### 4. `.env.example` (Configuration template)
+### 5. `.env.example` (Configuration template)
 
 **Purpose**: Configuration file template, committed to Git for reference
 
@@ -166,7 +194,7 @@ cp .env.example .env
 
 ---
 
-### 5. `requirements.txt` (Python dependencies)
+### 6. `requirements.txt` (Python dependencies)
 
 **Purpose**: List required Python packages
 
@@ -212,7 +240,7 @@ pip install -r requirements.txt
 
 ---
 
-### 6. `.gitignore` (Git ignore rules)
+### 7. `.gitignore` (Git ignore rules)
 
 **Purpose**: Tell Git which files not to commit
 
@@ -240,7 +268,7 @@ __pycache__/
 
 ## Documentation Files
 
-### 7. `README.md` (6KB)
+### 8. `README.md` (6KB)
 
 **Purpose**: Project usage documentation
 
@@ -266,7 +294,7 @@ cat README.md
 
 ---
 
-### 8. `FILE_STRUCTURE.md` (This file)
+### 9. `FILE_STRUCTURE.md` (This file)
 
 **Purpose**: Comprehensive documentation of all project files
 
@@ -281,7 +309,7 @@ cat README.md
 
 ## Data Files (data/ directory)
 
-### 9. `data/mastersprograminanalytics.pdf` (214KB)
+### 10. `data/mastersprograminanalytics.pdf` (214KB)
 
 **Purpose**: UChicago MS Applied Data Science program PDF handbook
 
@@ -302,7 +330,7 @@ cat README.md
 
 ---
 
-### 10-23. `data/page_*.html` (14 HTML files)
+### 11-24. `data/page_*.html` (14 HTML files)
 
 **Purpose**: Web page snapshots from UChicago Data Science website
 
@@ -384,25 +412,26 @@ python rag.py --rebuild "test"
 
 | Type | File Count | Total Size |
 |------|-----------|-----------|
-| Python code | 2 | 24KB |
+| Python code | 3 | 32KB |
 | Configuration files | 4 | 2KB |
 | Documentation | 2 | 15KB |
 | PDF data | 1 | 214KB |
 | HTML data | 14 | ~1.7MB |
 | Vector database | - | ~25MB |
-| **Total** | 23+ | ~2MB (excluding .chroma) |
+| **Total** | 24+ | ~2MB (excluding .chroma) |
 
 ---
 
 ## Key Files Explanation
 
-### Required Files (6)
-1. `rag.py` - Core code
-2. `eval_ragas.py` - Evaluation script
-3. `requirements.txt` - Dependency list
-4. `.env` - Configuration (must be created locally)
-5. `README.md` - Documentation
-6. `data/` - Data directory
+### Required Files (7)
+1. `rag.py` - Core RAG system (CLI)
+2. `app.py` - Web interface (Streamlit)
+3. `eval_ragas.py` - Evaluation script
+4. `requirements.txt` - Dependency list
+5. `.env` - Configuration (must be created locally)
+6. `README.md` - Documentation
+7. `data/` - Data directory
 
 ### Recommended Files (3)
 1. `.env.example` - Configuration template
@@ -428,10 +457,13 @@ vim .env  # Add OPENAI_API_KEY
 # 3. Run RAG system
 python rag.py "What are the core courses?"
 
-# 4. Evaluate system
+# 4. Run web interface (optional)
+streamlit run app.py
+
+# 5. Evaluate system
 python eval_ragas.py
 
-# 5. View documentation
+# 6. View documentation
 cat README.md
 ```
 
